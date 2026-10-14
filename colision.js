@@ -26,7 +26,7 @@ class Circle {
     draw(context) {
         context.beginPath();
 
-        context.strokeStyle = this.isColliding ? "#0000FF" : this.originalColor;
+        context.strokeStyle = this.isColliding ? "#0000a0" : this.originalColor;
         context.textAlign = "center";
         context.textBaseline = "middle";
         context.font = "20px Arial";
