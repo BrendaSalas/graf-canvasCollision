@@ -1,4 +1,3 @@
-
 const canvas = document.getElementById("canvas");
 let ctx = canvas.getContext("2d");
 
@@ -8,7 +7,7 @@ const window_width = window.innerWidth;
 
 canvas.height = window_height;
 canvas.width = window_width;
-canvas.style.background = "#ff8";
+canvas.style.background = "#FFE5ED";
 
 class Circle {
     constructor(x, y, radius, color, text, speed) {
@@ -58,7 +57,7 @@ class Circle {
         }
     }
 
-    // Detectar colisión con otro círculo
+    // Detectar colisión con otro círculo y cambiar su dirección
     checkCollision(other) {
         let distanciaX = other.posX - this.posX;
         let distanciaY = other.posY - this.posY;
@@ -69,8 +68,54 @@ class Circle {
         );
 
         if (distancia <= this.radius + other.radius) {
+            // Activar el color azul durante la colisión
             this.isColliding = true;
             other.isColliding = true;
+
+            // Evitar una división entre cero
+            if (distancia === 0) {
+                distanciaX = 0.01;
+                distanciaY = 0;
+                distancia = 0.01;
+            }
+
+            // Vector unitario entre los centros
+            let normalX = distanciaX / distancia;
+            let normalY = distanciaY / distancia;
+
+            // Velocidad relativa entre los círculos
+            let velocidadRelX = other.dx - this.dx;
+            let velocidadRelY = other.dy - this.dy;
+
+            // Comprobar que se estén acercando
+            let velocidadNormal =
+                velocidadRelX * normalX + velocidadRelY * normalY;
+
+            if (velocidadNormal < 0) {
+                // Intercambiar las componentes de velocidad
+                // en la dirección de la colisión
+                let impulso = velocidadNormal;
+
+                this.dx += impulso * normalX;
+                this.dy += impulso * normalY;
+
+                other.dx -= impulso * normalX;
+                other.dy -= impulso * normalY;
+            }
+
+            // Separar ligeramente los círculos para evitar
+            // que permanezcan superpuestos
+            let superposicion = this.radius + other.radius - distancia;
+
+            if (superposicion > 0) {
+                let separacion = superposicion / 2;
+
+                this.posX -= normalX * separacion;
+                this.posY -= normalY * separacion;
+
+                other.posX += normalX * separacion;
+                other.posY += normalY * separacion;
+            }
         }
     }
 }
@@ -88,8 +133,8 @@ function generateCircles(n) {
 
         // Velocidad entre 1 y 5
         let speed = Math.random() * 4 + 1;
-
         let text = `C${i + 1}`;
+
         circles.push(new Circle(x, y, radius, color, text, speed));
     }
 }
@@ -113,11 +158,12 @@ function detectCollisions() {
 function animate() {
     ctx.clearRect(0, 0, window_width, window_height);
 
+    // Actualizar el movimiento de todos los círculos
     circles.forEach(circle => {
         circle.update(ctx);
     });
 
-    // Detectar colisiones en cada fotograma
+    // Detectar las colisiones
     detectCollisions();
 
     requestAnimationFrame(animate);
