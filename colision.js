@@ -8,8 +8,7 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-// Colores del fondo
-const fondo = "#50237c";
+ctx.imageSmoothingEnabled = false;
 
 // ==========================================
 // CONFIGURACIÓN DEL JUEGO
@@ -21,224 +20,226 @@ let objetos = [];
 let contador = 0;
 let velocidadNivel = 1;
 
+// Paleta pixel art
+const colores = [
+    "#ff3d81",
+    "#ffd447",
+    "#20d9ff",
+    "#b56cff",
+    "#83ff79",
+    "#ff844f",
+    "#ffffff"
+];
+
 // ==========================================
 // CLASE OBJETO
-// Cada objeto tiene sus propios atributos
-// y métodos de movimiento y dibujo.
 // ==========================================
 
 class Objeto {
     constructor() {
-        this.radio = Math.random() * 16 + 20;
-
-        this.x = Math.random() *
-            (canvas.width - this.radio * 2) + this.radio;
-
-        this.y = -Math.random() * canvas.height;
-
-        // Velocidad horizontal y vertical
-        this.velocidadX = (Math.random() - 0.5) * 2;
-        this.velocidadY = Math.random() * 2 + 2;
-
-        // Gravedad y fuerza del rebote
-        this.gravedad = 0.12;
-        this.fuerzaRebote = 0.72;
-        this.rebotes = 0;
-
-        this.eliminado = false;
-
-        // Diseño aleatorio
-        const colores = [
-            "#ff4fa3",
-            "#ffcc00",
-            "#00e5ff",
-            "#a970ff",
-            "#7dff7a",
-            "#ff784f",
-            "#ffffff"
-        ];
+        this.radio = Math.floor(Math.random() * 7 + 12);
 
         this.color = colores[
             Math.floor(Math.random() * colores.length)
         ];
 
-        // Cada objeto tendrá una figura diferente
-        const figuras = ["estrella", "rombo", "corazon", "flor"];
+        const figuras = [
+            "estrella",
+            "corazon",
+            "rombo",
+            "flor"
+        ];
 
         this.figura = figuras[
             Math.floor(Math.random() * figuras.length)
         ];
 
-        this.rotacion = Math.random() * Math.PI * 2;
-        this.velocidadRotacion = (Math.random() - 0.5) * 0.06;
-
+        this.eliminado = false;
         this.reiniciarArriba();
     }
 
-    // ======================================
-    // REINICIAR OBJETO EN LA PARTE SUPERIOR
-    // ======================================
-
     reiniciarArriba() {
         this.x = Math.random() *
-            (canvas.width - this.radio * 2) + this.radio;
+            (canvas.width - this.radio * 4) + this.radio * 2;
 
-        this.y = -this.radio - Math.random() * 150;
+        this.y = -this.radio * 2 - Math.random() * 200;
 
-        this.velocidadY = Math.random() * 2 + 2;
-        this.velocidadX = (Math.random() - 0.5) * 2;
+        this.velocidadX = (Math.random() - 0.5) * 1.5;
+        this.velocidadY = Math.random() * 2 + 1.5;
 
-        this.rebotes = 0;
+        this.gravedad = 0.10;
         this.fuerzaRebote = 0.72;
-        this.rotacion = Math.random() * Math.PI * 2;
+        this.rebotes = 0;
+        this.rotacion = 0;
         this.eliminado = false;
     }
 
     // ======================================
-    // DIBUJAR FIGURAS
+    // DIBUJAR SPRITES PIXEL ART
     // ======================================
 
-    dibujarFigura() {
+    dibujar() {
+        if (this.eliminado) return;
+
+        const pixel = 4;
+        const r = Math.max(3, Math.floor(this.radio / pixel));
+
+        // Matrices de píxeles:
+        // 0 = transparente
+        // 1 = color principal
+        // 2 = sombra
+        // 3 = brillo
+        const sprites = {
+            estrella: [
+                "00000100000",
+                "00000100000",
+                "00001110000",
+                "00011111000",
+                "11111111111",
+                "01111111110",
+                "00111111100",
+                "00111111100",
+                "01101101110",
+                "11000000011",
+                "10000000001"
+            ],
+
+            corazon: [
+                "00110001100",
+                "01111011110",
+                "11111111111",
+                "11111111111",
+                "11111111111",
+                "01111111110",
+                "00111111100",
+                "00011111000",
+                "00001110000",
+                "00000100000"
+            ],
+
+            rombo: [
+                "00000100000",
+                "00011111000",
+                "00111111100",
+                "01111111110",
+                "11111111111",
+                "01111111110",
+                "00111111100",
+                "00011111000",
+                "00000100000"
+            ],
+
+            flor: [
+                "00011000",
+                "00111100",
+                "01111110",
+                "11011011",
+                "11111111",
+                "01111110",
+                "00111100",
+                "00011000"
+            ]
+        };
+
+        const sprite = sprites[this.figura];
+        const anchoPixel = this.radio * 2 / sprite[0].length;
+        const altoPixel = this.radio * 2 / sprite.length;
+
+        const ancho = sprite[0].length * anchoPixel;
+        const alto = sprite.length * altoPixel;
+
+        const inicioX = this.x - ancho / 2;
+        const inicioY = this.y - alto / 2;
+
         ctx.save();
 
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotacion);
+        // Sombra pixelada debajo de la figura
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        ctx.fillRect(
+            inicioX + 4,
+            inicioY + 4,
+            ancho,
+            alto
+        );
 
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 15;
+        // Dibujar cada píxel del sprite
+        for (let fila = 0; fila < sprite.length; fila++) {
+            for (let columna = 0;
+                columna < sprite[fila].length;
+                columna++) {
 
-        ctx.fillStyle = this.color;
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 2;
+                if (sprite[fila][columna] === "0") continue;
 
-        ctx.beginPath();
+                const px = inicioX + columna * anchoPixel;
+                const py = inicioY + fila * altoPixel;
 
-        if (this.figura === "estrella") {
-            // Estrella de cinco puntas
-            for (let i = 0; i < 10; i++) {
-                const radio = i % 2 === 0
-                    ? this.radio
-                    : this.radio * 0.45;
+                // Borde negro estilo videojuego retro
+                ctx.fillStyle = "#2c063d";
 
-                const angulo = i * Math.PI / 5 - Math.PI / 2;
+                ctx.fillRect(
+                    px - 1,
+                    py - 1,
+                    anchoPixel + 2,
+                    altoPixel + 2
+                );
 
-                const px = Math.cos(angulo) * radio;
-                const py = Math.sin(angulo) * radio;
+                // Color de la figura
+                ctx.fillStyle = this.color;
 
-                if (i === 0) {
-                    ctx.moveTo(px, py);
-                } else {
-                    ctx.lineTo(px, py);
+                if (
+                    fila < sprite.length / 3 &&
+                    columna < sprite[fila].length / 3
+                ) {
+                    ctx.fillStyle = "#ffffff";
                 }
-            }
 
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-        } else if (this.figura === "rombo") {
-            ctx.moveTo(0, -this.radio);
-            ctx.lineTo(this.radio * 0.7, 0);
-            ctx.lineTo(0, this.radio);
-            ctx.lineTo(-this.radio * 0.7, 0);
-            ctx.closePath();
-
-            ctx.fill();
-            ctx.stroke();
-
-        } else if (this.figura === "corazon") {
-            const r = this.radio * 0.75;
-
-            ctx.moveTo(0, r * 0.9);
-            ctx.bezierCurveTo(
-                -r * 1.8, -r * 0.2,
-                -r * 1.2, -r * 1.5,
-                0, -r * 0.7
-            );
-
-            ctx.bezierCurveTo(
-                r * 1.2, -r * 1.5,
-                r * 1.8, -r * 0.2,
-                0, r * 0.9
-            );
-
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-        } else if (this.figura === "flor") {
-            for (let i = 0; i < 6; i++) {
-                const angulo = i * Math.PI / 3;
-
-                const px = Math.cos(angulo) * this.radio * 0.55;
-                const py = Math.sin(angulo) * this.radio * 0.55;
-
-                ctx.moveTo(px + this.radio * 0.35, py);
-
-                ctx.arc(
+                ctx.fillRect(
                     px,
                     py,
-                    this.radio * 0.35,
-                    0,
-                    Math.PI * 2
+                    anchoPixel,
+                    altoPixel
                 );
             }
-
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(0, 0, this.radio * 0.25, 0, Math.PI * 2);
-            ctx.fillStyle = "#fff3a0";
-            ctx.fill();
-
-            ctx.strokeStyle = "#ffffff";
-            ctx.stroke();
         }
 
         ctx.restore();
     }
 
     // ======================================
-    // MOVIMIENTO Y CAÍDA LIBRE
+    // ACTUALIZAR MOVIMIENTO Y REBOTES
     // ======================================
 
     actualizar() {
         if (this.eliminado) return;
 
-        // Caída vertical con aceleración por gravedad
         this.velocidadY += this.gravedad;
+
+        this.x += this.velocidadX * velocidadNivel;
         this.y += this.velocidadY * velocidadNivel;
 
-        // Desplazamiento horizontal
-        this.x += this.velocidadX * velocidadNivel;
-
-        // Rotación de las figuras
-        this.rotacion += this.velocidadRotacion;
-
-        // Rebote en las paredes laterales
+        // Rebote en el lado derecho
         if (this.x + this.radio >= canvas.width) {
             this.x = canvas.width - this.radio;
             this.velocidadX = -Math.abs(this.velocidadX);
         }
 
+        // Rebote en el lado izquierdo
         if (this.x - this.radio <= 0) {
             this.x = this.radio;
             this.velocidadX = Math.abs(this.velocidadX);
         }
 
-        // Rebote en el piso
+        // Rebote en el suelo
         if (this.y + this.radio >= canvas.height) {
             this.y = canvas.height - this.radio;
 
-            this.velocidadY = -Math.abs(this.velocidadY) *
-                this.fuerzaRebote;
+            this.velocidadY =
+                -Math.abs(this.velocidadY) * this.fuerzaRebote;
 
+            this.fuerzaRebote *= 0.68;
             this.rebotes++;
 
-            // Cada rebote pierde fuerza
-            this.fuerzaRebote *= 0.68;
-
-            // Cuando ya casi no rebota, reaparece arriba
+            // Si pierde la fuerza, vuelve a aparecer arriba
             if (
                 Math.abs(this.velocidadY) < 1 ||
                 this.rebotes >= 6
@@ -246,80 +247,185 @@ class Objeto {
                 this.reiniciarArriba();
             }
         }
-
-        // Evitar que los objetos se salgan por arriba
-        if (this.y + this.radio < 0) {
-            this.y = -this.radio;
-        }
     }
 
     // ======================================
-    // DETECTAR CLIC SOBRE EL OBJETO
+    // DETECTAR SI EL MOUSE TOCA LA FIGURA
     // ======================================
 
     contienePunto(mouseX, mouseY) {
-        const distanciaX = mouseX - this.x;
-        const distanciaY = mouseY - this.y;
-
-        const distancia = Math.sqrt(
-            distanciaX * distanciaX +
-            distanciaY * distanciaY
+        return (
+            Math.abs(mouseX - this.x) <= this.radio &&
+            Math.abs(mouseY - this.y) <= this.radio
         );
-
-        return distancia <= this.radio;
     }
 }
 
 // ==========================================
-// CREAR LOS 25 OBJETOS
+// FONDO PIXEL ART
 // ==========================================
 
-function crearObjetos() {
-    objetos = [];
-
-    for (let i = 0; i < TOTAL_OBJETOS; i++) {
-        objetos.push(new Objeto());
-    }
-}
-
-// ==========================================
-// CONTADOR Y NIVELES DE VELOCIDAD
-// ==========================================
-
-function dibujarContador() {
-    ctx.save();
-
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 22px Arial";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "top";
-
-    ctx.fillText(
-        "Objetos eliminados: " + contador,
-        canvas.width - 25,
-        25
+function dibujarFondo() {
+    // Cielo nocturno
+    const gradiente = ctx.createLinearGradient(
+        0, 0, 0, canvas.height
     );
 
-    let mensaje = "Velocidad: inicial";
+    gradiente.addColorStop(0, "#080d3d");
+    gradiente.addColorStop(0.55, "#21105a");
+    gradiente.addColorStop(1, "#711c85");
 
-    if (contador > 20) {
-        mensaje = "Velocidad: alta";
-    } else if (contador > 10) {
-        mensaje = "Velocidad: media";
+    ctx.fillStyle = gradiente;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Estrellas cuadradas
+    ctx.fillStyle = "#b69aff";
+
+    for (let i = 0; i < 90; i++) {
+        const x = (i * 137.5) % canvas.width;
+        const y = (i * 83.7) % (canvas.height * 0.65);
+
+        const tamaño = i % 4 === 0 ? 4 : 2;
+
+        ctx.fillRect(x, y, tamaño, tamaño);
     }
 
-    ctx.font = "16px Arial";
-    ctx.fillStyle = "#ffccff";
+    // Luna pixelada
+    ctx.fillStyle = "#ffe4a3";
+    ctx.fillRect(
+        canvas.width - 150, 100, 48, 64
+    );
+
+    ctx.fillRect(
+        canvas.width - 162, 112, 72, 40
+    );
+
+    ctx.fillStyle = "#e9b9a1";
+    ctx.fillRect(canvas.width - 140, 118, 8, 8);
+    ctx.fillRect(canvas.width - 116, 140, 8, 8);
+    ctx.fillRect(canvas.width - 128, 154, 8, 4);
+
+    // Ciudad pixelada
+    const base = canvas.height * 0.82;
+    const anchoEdificio = 38;
+
+    for (
+        let x = 0, i = 0;
+        x < canvas.width;
+        x += anchoEdificio, i++
+    ) {
+        const altura = 50 + ((i * 37) % 110);
+
+        ctx.fillStyle = i % 2 === 0 ? "#10184f" : "#15134a";
+
+        ctx.fillRect(
+            x,
+            base - altura,
+            anchoEdificio - 3,
+            altura + 30
+        );
+
+        // Ventanas iluminadas
+        for (let wy = base - altura + 12;
+            wy < base;
+            wy += 18) {
+
+            for (let wx = x + 8;
+                wx < x + anchoEdificio - 8;
+                wx += 16) {
+
+                ctx.fillStyle =
+                    (i + Math.floor(wy)) % 3 === 0
+                    ? "#ffb45e"
+                    : "#ff5f9e";
+
+                ctx.fillRect(wx, wy, 5, 7);
+            }
+        }
+    }
+
+    // Suelo
+    ctx.fillStyle = "#090d35";
+    ctx.fillRect(
+        0,
+        base + 20,
+        canvas.width,
+        canvas.height - base
+    );
+
+    // Línea superior del suelo
+    ctx.fillStyle = "#4434a3";
+    ctx.fillRect(0, base + 20, canvas.width, 5);
+}
+
+// ==========================================
+// INTERFAZ PIXEL ART
+// ==========================================
+
+function dibujarInterfaz() {
+    ctx.save();
+
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+
+    // Título
+    ctx.font = "bold 28px monospace";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("ATRAPA LAS FIGURAS!", 22, 22);
+
+    ctx.font = "bold 14px monospace";
+    ctx.fillStyle = "#d9c9ff";
+    ctx.fillText(
+        "CLIC IZQUIERDO PARA ATRAPAR",
+        24,
+        58
+    );
+
+    // Panel de puntuación
+    const panelX = canvas.width - 285;
+
+    ctx.fillStyle = "#080d3d";
+    ctx.fillRect(panelX, 18, 265, 55);
+
+    ctx.strokeStyle = "#b64dff";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(panelX, 18, 265, 55);
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 17px monospace";
+    ctx.fillStyle = "#ffffff";
 
     ctx.fillText(
-        mensaje,
-        canvas.width - 25,
-        58
+        "ATRAPADOS: " + contador,
+        panelX + 132,
+        36
+    );
+
+    // Nivel de velocidad
+    let nivel = "INICIAL";
+
+    if (contador > 20) {
+        nivel = "ALTA";
+    } else if (contador > 10) {
+        nivel = "MEDIA";
+    }
+
+    ctx.textAlign = "right";
+    ctx.font = "bold 14px monospace";
+    ctx.fillStyle = "#ffd447";
+
+    ctx.fillText(
+        "VELOCIDAD: " + nivel,
+        canvas.width - 22,
+        88
     );
 
     ctx.restore();
 }
+
+// ==========================================
+// VELOCIDAD SEGÚN EL CONTADOR
+// ==========================================
 
 function actualizarVelocidad() {
     if (contador > 20) {
@@ -332,11 +438,10 @@ function actualizarVelocidad() {
 }
 
 // ==========================================
-// DETECTAR CLIC IZQUIERDO DEL MOUSE
+// ATRAPAR FIGURAS CON EL MOUSE
 // ==========================================
 
-canvas.addEventListener("click", function(evento) {
-    // Solo aceptar el botón izquierdo
+canvas.addEventListener("mousedown", function(evento) {
     if (evento.button !== 0) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -344,106 +449,65 @@ canvas.addEventListener("click", function(evento) {
     const mouseX = evento.clientX - rect.left;
     const mouseY = evento.clientY - rect.top;
 
-    // Recorrer de atrás hacia adelante
     for (let i = objetos.length - 1; i >= 0; i--) {
-        const objeto = objetos[i];
+        if (objetos[i].contienePunto(mouseX, mouseY)) {
+            // Eliminar la figura atrapada
+            objetos.splice(i, 1);
 
-        if (objeto.contienePunto(mouseX, mouseY)) {
-            // Sumar al contador
+            // Actualizar la puntuación
             contador++;
-
-            // Eliminar el objeto y crear otro
-            objeto.reiniciarArriba();
-
-            // Actualizar el nivel de velocidad
             actualizarVelocidad();
 
-            // Solo eliminar un objeto por clic
+            // Crear una figura nueva
+            objetos.push(new Objeto());
+
             break;
         }
     }
 });
 
 // ==========================================
-// FONDO DECORATIVO
-// ==========================================
-
-function dibujarFondo() {
-    const gradiente = ctx.createLinearGradient(
-        0, 0, canvas.width, canvas.height
-    );
-
-    gradiente.addColorStop(0, "#1b1028");
-    gradiente.addColorStop(0.5, "#30204d");
-    gradiente.addColorStop(1, "#101b35");
-
-    ctx.fillStyle = gradiente;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Pequeñas estrellas decorativas
-    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-
-    for (let i = 0; i < 45; i++) {
-        const x = (i * 137.5) % canvas.width;
-        const y = (i * 83.7) % canvas.height;
-
-        ctx.beginPath();
-        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    // Instrucciones
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 20px Arial";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-
-    ctx.fillText("¡Atrapa las figuras!", 25, 25);
-
-    ctx.font = "14px Arial";
-    ctx.fillStyle = "#e6d9ff";
-
-    ctx.fillText(
-        "Haz clic izquierdo sobre las figuras para atraparlas",
-        25,
-        53
-    );
-}
-
-// ==========================================
 // ANIMACIÓN PRINCIPAL
 // ==========================================
 
 function animar() {
-    // Dibujar el fondo
     dibujarFondo();
 
-    // Actualizar y dibujar cada objeto
     for (const objeto of objetos) {
         objeto.actualizar();
-        objeto.dibujarFigura();
+        objeto.dibujar();
     }
 
-    // Dibujar contador y velocidad
-    dibujarContador();
+    dibujarInterfaz();
 
-    // Repetir animación
     requestAnimationFrame(animar);
 }
 
 // ==========================================
-// AJUSTAR EL CANVAS AL CAMBIAR DE TAMAÑO
+// AJUSTAR TAMAÑO DE PANTALLA
 // ==========================================
 
 window.addEventListener("resize", function() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+
+    ctx.imageSmoothingEnabled = false;
 });
 
 // ==========================================
-// INICIAR APLICACIÓN
+// INICIAR JUEGO
 // ==========================================
 
-crearObjetos();
-actualizarVelocidad();
-animar();
+function iniciarJuego() {
+    objetos = [];
+    contador = 0;
+    velocidadNivel = 1;
+
+    for (let i = 0; i < TOTAL_OBJETOS; i++) {
+        objetos.push(new Objeto());
+    }
+
+    animar();
+}
+
+iniciarJuego();
