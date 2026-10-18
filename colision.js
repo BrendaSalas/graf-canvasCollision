@@ -1,174 +1,449 @@
+// ==========================================
+// CONFIGURACIÓN DEL CANVAS
+// ==========================================
+
 const canvas = document.getElementById("canvas");
-let ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d");
 
-// Obtiene las dimensiones de la pantalla actual
-const window_height = window.innerHeight;
-const window_width = window.innerWidth;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-canvas.height = window_height;
-canvas.width = window_width;
-canvas.style.background = "#fff6f9";
+// Colores del fondo
+const fondo = "#1b1028";
 
-class Circle {
-    constructor(x, y, radius, color, text, speed) {
-        this.posX = x;
-        this.posY = y;
-        this.radius = radius;
-        this.color = color;
-        this.originalColor = color;
-        this.text = text;
-        this.speed = speed;
-        this.dx = 1 * this.speed;
-        this.dy = 1 * this.speed;
-        this.isColliding = false;
+// ==========================================
+// CONFIGURACIÓN DEL JUEGO
+// ==========================================
+
+const TOTAL_OBJETOS = 25;
+
+let objetos = [];
+let contador = 0;
+let velocidadNivel = 1;
+
+// ==========================================
+// CLASE OBJETO
+// Cada objeto tiene sus propios atributos
+// y métodos de movimiento y dibujo.
+// ==========================================
+
+class Objeto {
+    constructor() {
+        this.radio = Math.random() * 16 + 20;
+
+        this.x = Math.random() *
+            (canvas.width - this.radio * 2) + this.radio;
+
+        this.y = -Math.random() * canvas.height;
+
+        // Velocidad horizontal y vertical
+        this.velocidadX = (Math.random() - 0.5) * 2;
+        this.velocidadY = Math.random() * 2 + 2;
+
+        // Gravedad y fuerza del rebote
+        this.gravedad = 0.12;
+        this.fuerzaRebote = 0.72;
+        this.rebotes = 0;
+
+        this.eliminado = false;
+
+        // Diseño aleatorio
+        const colores = [
+            "#ff4fa3",
+            "#ffcc00",
+            "#00e5ff",
+            "#a970ff",
+            "#7dff7a",
+            "#ff784f",
+            "#ffffff"
+        ];
+
+        this.color = colores[
+            Math.floor(Math.random() * colores.length)
+        ];
+
+        // Cada objeto tendrá una figura diferente
+        const figuras = ["estrella", "rombo", "corazon", "flor"];
+
+        this.figura = figuras[
+            Math.floor(Math.random() * figuras.length)
+        ];
+
+        this.rotacion = Math.random() * Math.PI * 2;
+        this.velocidadRotacion = (Math.random() - 0.5) * 0.06;
+
+        this.reiniciarArriba();
     }
 
-    draw(context) {
-        context.beginPath();
+    // ======================================
+    // REINICIAR OBJETO EN LA PARTE SUPERIOR
+    // ======================================
 
-        context.strokeStyle = this.isColliding ? "#0000a0" : this.originalColor;
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.font = "20px Arial";
-        context.fillText(this.text, this.posX, this.posY);
-        context.lineWidth = 2;
-        context.arc(this.posX, this.posY, this.radius, 0, Math.PI * 2, false);
-        context.stroke();
-        context.closePath();
+    reiniciarArriba() {
+        this.x = Math.random() *
+            (canvas.width - this.radio * 2) + this.radio;
+
+        this.y = -this.radio - Math.random() * 150;
+
+        this.velocidadY = Math.random() * 2 + 2;
+        this.velocidadX = (Math.random() - 0.5) * 2;
+
+        this.rebotes = 0;
+        this.fuerzaRebote = 0.72;
+        this.rotacion = Math.random() * Math.PI * 2;
+        this.eliminado = false;
     }
 
-    update(context) {
-        this.draw(context);
+    // ======================================
+    // DIBUJAR FIGURAS
+    // ======================================
 
-        // Actualizar la posición X
-        this.posX += this.dx;
+    dibujarFigura() {
+        ctx.save();
 
-        // Cambiar la dirección si llega al borde en X
-        if (this.posX + this.radius > window_width || this.posX - this.radius < 0) {
-            this.dx = -this.dx;
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotacion);
+
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 15;
+
+        ctx.fillStyle = this.color;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+
+        if (this.figura === "estrella") {
+            // Estrella de cinco puntas
+            for (let i = 0; i < 10; i++) {
+                const radio = i % 2 === 0
+                    ? this.radio
+                    : this.radio * 0.45;
+
+                const angulo = i * Math.PI / 5 - Math.PI / 2;
+
+                const px = Math.cos(angulo) * radio;
+                const py = Math.sin(angulo) * radio;
+
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+        } else if (this.figura === "rombo") {
+            ctx.moveTo(0, -this.radio);
+            ctx.lineTo(this.radio * 0.7, 0);
+            ctx.lineTo(0, this.radio);
+            ctx.lineTo(-this.radio * 0.7, 0);
+            ctx.closePath();
+
+            ctx.fill();
+            ctx.stroke();
+
+        } else if (this.figura === "corazon") {
+            const r = this.radio * 0.75;
+
+            ctx.moveTo(0, r * 0.9);
+            ctx.bezierCurveTo(
+                -r * 1.8, -r * 0.2,
+                -r * 1.2, -r * 1.5,
+                0, -r * 0.7
+            );
+
+            ctx.bezierCurveTo(
+                r * 1.2, -r * 1.5,
+                r * 1.8, -r * 0.2,
+                0, r * 0.9
+            );
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+        } else if (this.figura === "flor") {
+            for (let i = 0; i < 6; i++) {
+                const angulo = i * Math.PI / 3;
+
+                const px = Math.cos(angulo) * this.radio * 0.55;
+                const py = Math.sin(angulo) * this.radio * 0.55;
+
+                ctx.moveTo(px + this.radio * 0.35, py);
+
+                ctx.arc(
+                    px,
+                    py,
+                    this.radio * 0.35,
+                    0,
+                    Math.PI * 2
+                );
+            }
+
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, this.radio * 0.25, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff3a0";
+            ctx.fill();
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.stroke();
         }
 
-        // Actualizar la posición Y
-        this.posY += this.dy;
+        ctx.restore();
+    }
 
-        // Cambiar la dirección si llega al borde en Y
-        if (this.posY + this.radius > window_height || this.posY - this.radius < 0) {
-            this.dy = -this.dy;
+    // ======================================
+    // MOVIMIENTO Y CAÍDA LIBRE
+    // ======================================
+
+    actualizar() {
+        if (this.eliminado) return;
+
+        // Caída vertical con aceleración por gravedad
+        this.velocidadY += this.gravedad;
+        this.y += this.velocidadY * velocidadNivel;
+
+        // Desplazamiento horizontal
+        this.x += this.velocidadX * velocidadNivel;
+
+        // Rotación de las figuras
+        this.rotacion += this.velocidadRotacion;
+
+        // Rebote en las paredes laterales
+        if (this.x + this.radio >= canvas.width) {
+            this.x = canvas.width - this.radio;
+            this.velocidadX = -Math.abs(this.velocidadX);
+        }
+
+        if (this.x - this.radio <= 0) {
+            this.x = this.radio;
+            this.velocidadX = Math.abs(this.velocidadX);
+        }
+
+        // Rebote en el piso
+        if (this.y + this.radio >= canvas.height) {
+            this.y = canvas.height - this.radio;
+
+            this.velocidadY = -Math.abs(this.velocidadY) *
+                this.fuerzaRebote;
+
+            this.rebotes++;
+
+            // Cada rebote pierde fuerza
+            this.fuerzaRebote *= 0.68;
+
+            // Cuando ya casi no rebota, reaparece arriba
+            if (
+                Math.abs(this.velocidadY) < 1 ||
+                this.rebotes >= 6
+            ) {
+                this.reiniciarArriba();
+            }
+        }
+
+        // Evitar que los objetos se salgan por arriba
+        if (this.y + this.radio < 0) {
+            this.y = -this.radio;
         }
     }
 
-    // Detectar colisión con otro círculo y cambiar su dirección
-    checkCollision(other) {
-        let distanciaX = other.posX - this.posX;
-        let distanciaY = other.posY - this.posY;
+    // ======================================
+    // DETECTAR CLIC SOBRE EL OBJETO
+    // ======================================
 
-        // Fórmula de distancia entre los centros
-        let distancia = Math.sqrt(
-            distanciaX * distanciaX + distanciaY * distanciaY
+    contienePunto(mouseX, mouseY) {
+        const distanciaX = mouseX - this.x;
+        const distanciaY = mouseY - this.y;
+
+        const distancia = Math.sqrt(
+            distanciaX * distanciaX +
+            distanciaY * distanciaY
         );
 
-        if (distancia <= this.radius + other.radius) {
-            // Activar el color azul durante la colisión
-            this.isColliding = true;
-            other.isColliding = true;
+        return distancia <= this.radio;
+    }
+}
 
-            // Evitar una división entre cero
-            if (distancia === 0) {
-                distanciaX = 0.01;
-                distanciaY = 0;
-                distancia = 0.01;
-            }
+// ==========================================
+// CREAR LOS 25 OBJETOS
+// ==========================================
 
-            // Vector unitario entre los centros
-            let normalX = distanciaX / distancia;
-            let normalY = distanciaY / distancia;
+function crearObjetos() {
+    objetos = [];
 
-            // Velocidad relativa entre los círculos
-            let velocidadRelX = other.dx - this.dx;
-            let velocidadRelY = other.dy - this.dy;
+    for (let i = 0; i < TOTAL_OBJETOS; i++) {
+        objetos.push(new Objeto());
+    }
+}
 
-            // Comprobar que se estén acercando
-            let velocidadNormal =
-                velocidadRelX * normalX + velocidadRelY * normalY;
+// ==========================================
+// CONTADOR Y NIVELES DE VELOCIDAD
+// ==========================================
 
-            if (velocidadNormal < 0) {
-                // Intercambiar las componentes de velocidad
-                // en la dirección de la colisión
-                let impulso = velocidadNormal;
+function dibujarContador() {
+    ctx.save();
 
-                this.dx += impulso * normalX;
-                this.dy += impulso * normalY;
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 22px Arial";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
 
-                other.dx -= impulso * normalX;
-                other.dy -= impulso * normalY;
-            }
+    ctx.fillText(
+        "Objetos eliminados: " + contador,
+        canvas.width - 25,
+        25
+    );
 
-            // Separar ligeramente los círculos para evitar
-            // que permanezcan superpuestos
-            let superposicion = this.radius + other.radius - distancia;
+    let mensaje = "Velocidad: inicial";
 
-            if (superposicion > 0) {
-                let separacion = superposicion / 2;
+    if (contador > 20) {
+        mensaje = "Velocidad: alta";
+    } else if (contador > 10) {
+        mensaje = "Velocidad: media";
+    }
 
-                this.posX -= normalX * separacion;
-                this.posY -= normalY * separacion;
+    ctx.font = "16px Arial";
+    ctx.fillStyle = "#ffccff";
 
-                other.posX += normalX * separacion;
-                other.posY += normalY * separacion;
-            }
+    ctx.fillText(
+        mensaje,
+        canvas.width - 25,
+        58
+    );
+
+    ctx.restore();
+}
+
+function actualizarVelocidad() {
+    if (contador > 20) {
+        velocidadNivel = 2.2;
+    } else if (contador > 10) {
+        velocidadNivel = 1.5;
+    } else {
+        velocidadNivel = 1;
+    }
+}
+
+// ==========================================
+// DETECTAR CLIC IZQUIERDO DEL MOUSE
+// ==========================================
+
+canvas.addEventListener("click", function(evento) {
+    // Solo aceptar el botón izquierdo
+    if (evento.button !== 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+
+    const mouseX = evento.clientX - rect.left;
+    const mouseY = evento.clientY - rect.top;
+
+    // Recorrer de atrás hacia adelante
+    for (let i = objetos.length - 1; i >= 0; i--) {
+        const objeto = objetos[i];
+
+        if (objeto.contienePunto(mouseX, mouseY)) {
+            // Sumar al contador
+            contador++;
+
+            // Eliminar el objeto y crear otro
+            objeto.reiniciarArriba();
+
+            // Actualizar el nivel de velocidad
+            actualizarVelocidad();
+
+            // Solo eliminar un objeto por clic
+            break;
         }
     }
-}
+});
 
-// Crear un array para almacenar los círculos
-let circles = [];
+// ==========================================
+// FONDO DECORATIVO
+// ==========================================
 
-// Función para generar círculos aleatorios
-function generateCircles(n) {
-    for (let i = 0; i < n; i++) {
-        let radius = Math.random() * 30 + 20;
-        let x = Math.random() * (window_width - radius * 2) + radius;
-        let y = Math.random() * (window_height - radius * 2) + radius;
-        let color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0")}`;
+function dibujarFondo() {
+    const gradiente = ctx.createLinearGradient(
+        0, 0, canvas.width, canvas.height
+    );
 
-        // Velocidad entre 1 y 5
-        let speed = Math.random() * 4 + 1;
-        let text = `C${i + 1}`;
+    gradiente.addColorStop(0, "#1b1028");
+    gradiente.addColorStop(0.5, "#30204d");
+    gradiente.addColorStop(1, "#101b35");
 
-        circles.push(new Circle(x, y, radius, color, text, speed));
+    ctx.fillStyle = gradiente;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Pequeñas estrellas decorativas
+    ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
+
+    for (let i = 0; i < 45; i++) {
+        const x = (i * 137.5) % canvas.width;
+        const y = (i * 83.7) % canvas.height;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
     }
+
+    // Instrucciones
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 20px Arial";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    ctx.fillText("¡Atrapa las figuras!", 25, 25);
+
+    ctx.font = "14px Arial";
+    ctx.fillStyle = "#e6d9ff";
+
+    ctx.fillText(
+        "Haz clic izquierdo sobre las figuras para atraparlas",
+        25,
+        53
+    );
 }
 
-// Función para detectar las colisiones entre todos los círculos
-function detectCollisions() {
-    // Restablecer el estado de colisión
-    circles.forEach(circle => {
-        circle.isColliding = false;
-    });
+// ==========================================
+// ANIMACIÓN PRINCIPAL
+// ==========================================
 
-    // Comparar cada círculo con los demás
-    for (let i = 0; i < circles.length; i++) {
-        for (let j = i + 1; j < circles.length; j++) {
-            circles[i].checkCollision(circles[j]);
-        }
+function animar() {
+    // Dibujar el fondo
+    dibujarFondo();
+
+    // Actualizar y dibujar cada objeto
+    for (const objeto of objetos) {
+        objeto.actualizar();
+        objeto.dibujarFigura();
     }
+
+    // Dibujar contador y velocidad
+    dibujarContador();
+
+    // Repetir animación
+    requestAnimationFrame(animar);
 }
 
-// Función para animar los círculos
-function animate() {
-    ctx.clearRect(0, 0, window_width, window_height);
+// ==========================================
+// AJUSTAR EL CANVAS AL CAMBIAR DE TAMAÑO
+// ==========================================
 
-    // Actualizar el movimiento de todos los círculos
-    circles.forEach(circle => {
-        circle.update(ctx);
-    });
+window.addEventListener("resize", function() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
 
-    // Detectar las colisiones
-    detectCollisions();
+// ==========================================
+// INICIAR APLICACIÓN
+// ==========================================
 
-    requestAnimationFrame(animate);
-}
-
-// Generar 20 círculos y comenzar la animación
-generateCircles(20);
-animate();
+crearObjetos();
+actualizarVelocidad();
+animar();
