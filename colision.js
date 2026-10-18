@@ -9,7 +9,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 // Colores del fondo
-const fondo = "#1b1028";
+const fondo = "#50237c";
 
 // ==========================================
 // CONFIGURACIÓN DEL JUEGO
