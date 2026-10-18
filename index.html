@@ -1,24 +1,108 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactividad con gráficos 2D</title>
+
+    <title>Colisiones 2D | Gatos Pixel Art</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Courier New", monospace;
+            color: white;
+            text-align: center;
+            background: linear-gradient(
+                180deg,
+                #351b48,
+                #c75d9d,
+                #fa8c8b,
+                #ffbc78
+            );
+        }
+
+        header {
+            padding: 22px 12px 12px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(23px, 5vw, 38px);
+            text-shadow: 3px 3px #713d77;
+        }
+
+        p {
+            margin: 8px;
+            font-size: 15px;
+        }
+
+        #marcador {
+            display: inline-block;
+            margin: 12px;
+            padding: 12px 20px;
+            border: 3px solid white;
+            border-radius: 8px;
+            background: rgba(92, 45, 105, 0.35);
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(67, 28, 81, 0.2);
+        }
+
+        canvas {
+            display: block;
+            width: min(94vw, 1000px);
+            height: min(65vh, 600px);
+            min-height: 320px;
+            margin: 8px auto 24px;
+            border: 4px solid rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(67, 28, 81, 0.25);
+            cursor: crosshair;
+            image-rendering: pixelated;
+            touch-action: manipulation;
+        }
+
+        footer {
+            padding: 0 12px 20px;
+            font-size: 12px;
+            text-shadow: 1px 1px #713d77;
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding-top: 16px;
+            }
+
+            canvas {
+                height: 60vh;
+                min-height: 300px;
+            }
+        }
+    </style>
 </head>
 
-<body style="
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    background: #441c54;
-    font-family: Arial, sans-serif;
-">
+<body>
+    <header>
+        <h1>🐈 GATITOS AL ATARDECER 🌅</h1>
+
+        <p>¡Atrapa a los gatos pixelados haciendo clic sobre ellos!</p>
+
+        <div id="marcador">
+            GATOS ATRAPADOS: <span id="puntos">0</span>
+        </div>
+    </header>
 
     <canvas id="canvas"></canvas>
 
+    <footer>
+        COLISIONES 2D · PIXEL ART · ATRAPA A TODOS LOS GATITOS
+    </footer>
+
     <script src="colision.js"></script>
-
 </body>
-
 </html>

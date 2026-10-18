@@ -1,513 +1,346 @@
-// ==========================================
-// CONFIGURACIÓN DEL CANVAS
-// ==========================================
-
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const marcador = document.getElementById("puntos");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const TOTAL_GATOS = 25;
+const TAMANO_GATO = 64;
 
-ctx.imageSmoothingEnabled = false;
+let gatos = [];
+let puntos = 0;
+let velocidadExtra = 1;
 
-// ==========================================
-// CONFIGURACIÓN DEL JUEGO
-// ==========================================
-
-const TOTAL_OBJETOS = 25;
-
-let objetos = [];
-let contador = 0;
-let velocidadNivel = 1;
-
-// Paleta pixel art
-const colores = [
-    "#ff3d81",
-    "#ffd447",
-    "#20d9ff",
-    "#b56cff",
-    "#83ff79",
-    "#ff844f",
-    "#ffffff"
+const coloresGatos = [
+    { cuerpo: "#ff75b5", sombra: "#d94087", claro: "#ffb6d9" },
+    { cuerpo: "#68d9ff", sombra: "#2996ce", claro: "#b5f1ff" },
+    { cuerpo: "#ffe16b", sombra: "#e5a82e", claro: "#fff3b0" },
+    { cuerpo: "#bd8cff", sombra: "#8650cb", claro: "#e1c6ff" },
+    { cuerpo: "#85ed9a", sombra: "#37ae68", claro: "#c6ffd0" },
+    { cuerpo: "#ff9a66", sombra: "#df633f", claro: "#ffd0a8" },
+    { cuerpo: "#ff8d9e", sombra: "#d64d72", claro: "#ffc3ce" },
+    { cuerpo: "#a6a9ff", sombra: "#646bd1", claro: "#d6d8ff" },
+    { cuerpo: "#f4a8ff", sombra: "#b75cc8", claro: "#ffe0ff" }
 ];
 
-// ==========================================
-// CLASE OBJETO
-// ==========================================
+// Ajustar el canvas a su tamaño visible
+function ajustarCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
 
-class Objeto {
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    for (const gato of gatos) {
+        gato.x = Math.max(
+            gato.tamano / 2,
+            Math.min(rect.width - gato.tamano / 2, gato.x)
+        );
+
+        gato.y = Math.max(
+            gato.tamano / 2,
+            Math.min(rect.height - gato.tamano / 2, gato.y)
+        );
+    }
+}
+
+// Fondo con colores de atardecer
+function dibujarAtardecer() {
+    const ancho = canvas.clientWidth;
+    const alto = canvas.clientHeight;
+
+    const gradiente = ctx.createLinearGradient(0, 0, 0, alto);
+
+    gradiente.addColorStop(0, "#654080");
+    gradiente.addColorStop(0.35, "#c75d9d");
+    gradiente.addColorStop(0.68, "#fa8c8b");
+    gradiente.addColorStop(1, "#ffbc78");
+
+    ctx.fillStyle = gradiente;
+    ctx.fillRect(0, 0, ancho, alto);
+
+    // Sol pixelado
+    const solX = ancho * 0.75;
+    const solY = alto * 0.18;
+    const p = 8;
+
+    ctx.fillStyle = "#ffe8a3";
+    ctx.fillRect(solX, solY, p * 6, p * 6);
+    ctx.fillRect(solX + p, solY - p, p * 4, p * 8);
+    ctx.fillRect(solX - p, solY + p, p * 8, p * 4);
+
+    // Nubes decorativas
+    dibujarNube(ancho * 0.12, alto * 0.22);
+    dibujarNube(ancho * 0.43, alto * 0.40);
+}
+
+function dibujarNube(x, y) {
+    const p = 8;
+
+    ctx.fillStyle = "rgba(255, 220, 240, 0.45)";
+    ctx.fillRect(x + p, y, p * 3, p);
+    ctx.fillRect(x, y + p, p * 6, p);
+    ctx.fillRect(x + p, y + p * 2, p * 4, p);
+}
+
+// Clase de los gatos
+class Gato {
     constructor() {
-        this.radio = Math.floor(Math.random() * 7 + 12);
+        this.tamano = TAMANO_GATO;
 
-        this.color = colores[
-            Math.floor(Math.random() * colores.length)
+        this.color = coloresGatos[
+            Math.floor(Math.random() * coloresGatos.length)
         ];
 
-        const figuras = [
-            "estrella",
-            "corazon",
-            "rombo",
-            "flor"
-        ];
+        const ancho = canvas.clientWidth;
+        const alto = canvas.clientHeight;
 
-        this.figura = figuras[
-            Math.floor(Math.random() * figuras.length)
-        ];
+        this.x = this.tamano / 2 +
+            Math.random() * Math.max(1, ancho - this.tamano);
 
-        this.eliminado = false;
-        this.reiniciarArriba();
+        this.y = this.tamano / 2 +
+            Math.random() * Math.max(1, alto - this.tamano);
+
+        const velocidad = (1 + Math.random() * 2) * velocidadExtra;
+
+        this.dx = (Math.random() < 0.5 ? -1 : 1) * velocidad;
+        this.dy = (Math.random() < 0.5 ? -1 : 1) * velocidad;
+
+        this.tiempoAzul = 0;
     }
-
-    reiniciarArriba() {
-        this.x = Math.random() *
-            (canvas.width - this.radio * 4) + this.radio * 2;
-
-        this.y = -this.radio * 2 - Math.random() * 200;
-
-        this.velocidadX = (Math.random() - 0.5) * 1.5;
-        this.velocidadY = Math.random() * 2 + 1.5;
-
-        this.gravedad = 0.10;
-        this.fuerzaRebote = 0.72;
-        this.rebotes = 0;
-        this.rotacion = 0;
-        this.eliminado = false;
-    }
-
-    // ======================================
-    // DIBUJAR SPRITES PIXEL ART
-    // ======================================
 
     dibujar() {
-        if (this.eliminado) return;
+        const x = Math.round(this.x);
+        const y = Math.round(this.y);
+        const p = this.tamano / 16;
 
-        const pixel = 4;
-        const r = Math.max(3, Math.floor(this.radio / pixel));
+        const cuerpo = this.tiempoAzul > 0
+            ? "#35aaff"
+            : this.color.cuerpo;
 
-        // Matrices de píxeles:
-        // 0 = transparente
-        // 1 = color principal
-        // 2 = sombra
-        // 3 = brillo
-        const sprites = {
-            estrella: [
-                "00000100000",
-                "00000100000",
-                "00001110000",
-                "00011111000",
-                "11111111111",
-                "01111111110",
-                "00111111100",
-                "00111111100",
-                "01101101110",
-                "11000000011",
-                "10000000001"
-            ],
+        const sombra = this.tiempoAzul > 0
+            ? "#1762d0"
+            : this.color.sombra;
 
-            corazon: [
-                "00110001100",
-                "01111011110",
-                "11111111111",
-                "11111111111",
-                "11111111111",
-                "01111111110",
-                "00111111100",
-                "00011111000",
-                "00001110000",
-                "00000100000"
-            ],
-
-            rombo: [
-                "00000100000",
-                "00011111000",
-                "00111111100",
-                "01111111110",
-                "11111111111",
-                "01111111110",
-                "00111111100",
-                "00011111000",
-                "00000100000"
-            ],
-
-            flor: [
-                "00011000",
-                "00111100",
-                "01111110",
-                "11011011",
-                "11111111",
-                "01111110",
-                "00111100",
-                "00011000"
-            ]
-        };
-
-        const sprite = sprites[this.figura];
-        const anchoPixel = this.radio * 2 / sprite[0].length;
-        const altoPixel = this.radio * 2 / sprite.length;
-
-        const ancho = sprite[0].length * anchoPixel;
-        const alto = sprite.length * altoPixel;
-
-        const inicioX = this.x - ancho / 2;
-        const inicioY = this.y - alto / 2;
+        const claro = this.tiempoAzul > 0
+            ? "#b8eaff"
+            : this.color.claro;
 
         ctx.save();
 
-        // Sombra pixelada debajo de la figura
-        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-        ctx.fillRect(
-            inicioX + 4,
-            inicioY + 4,
-            ancho,
-            alto
-        );
+        // Cola: píxeles sin fondo rectangular
+        ctx.fillStyle = sombra;
+        ctx.fillRect(x - p * 7, y + p * 4, p * 3, p * 3);
+        ctx.fillRect(x - p * 8, y + p * 2, p * 3, p * 3);
+        ctx.fillRect(x - p * 7, y, p * 3, p * 3);
 
-        // Dibujar cada píxel del sprite
-        for (let fila = 0; fila < sprite.length; fila++) {
-            for (let columna = 0;
-                columna < sprite[fila].length;
-                columna++) {
+        // Orejas exteriores
+        ctx.fillStyle = sombra;
+        ctx.fillRect(x - p * 6, y - p * 6, p * 4, p * 6);
+        ctx.fillRect(x + p * 2, y - p * 6, p * 4, p * 6);
 
-                if (sprite[fila][columna] === "0") continue;
+        // Interior de las orejas
+        ctx.fillStyle = claro;
+        ctx.fillRect(x - p * 5, y - p * 5, p * 2, p * 3);
+        ctx.fillRect(x + p * 3, y - p * 5, p * 2, p * 3);
 
-                const px = inicioX + columna * anchoPixel;
-                const py = inicioY + fila * altoPixel;
+        // Cabeza
+        ctx.fillStyle = sombra;
+        ctx.fillRect(x - p * 7, y - p * 2, p * 14, p * 8);
+        ctx.fillRect(x - p * 6, y - p * 4, p * 12, p * 12);
 
-                // Borde negro estilo videojuego retro
-                ctx.fillStyle = "#2c063d";
+        ctx.fillStyle = cuerpo;
+        ctx.fillRect(x - p * 6, y - p * 3, p * 12, p * 9);
+        ctx.fillRect(x - p * 5, y - p * 4, p * 10, p * 10);
 
-                ctx.fillRect(
-                    px - 1,
-                    py - 1,
-                    anchoPixel + 2,
-                    altoPixel + 2
-                );
+        // Brillos de la cara
+        ctx.fillStyle = claro;
+        ctx.fillRect(x - p * 4, y - p * 2, p * 2, p);
+        ctx.fillRect(x + p * 2, y - p * 2, p * 2, p);
 
-                // Color de la figura
-                ctx.fillStyle = this.color;
+        // Ojos
+        ctx.fillStyle = "#40274e";
+        ctx.fillRect(x - p * 4, y, p * 2, p * 2);
+        ctx.fillRect(x + p * 2, y, p * 2, p * 2);
 
-                if (
-                    fila < sprite.length / 3 &&
-                    columna < sprite[fila].length / 3
-                ) {
-                    ctx.fillStyle = "#ffffff";
-                }
+        // Brillos de los ojos
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(x - p * 4, y, p, p);
+        ctx.fillRect(x + p * 2, y, p, p);
 
-                ctx.fillRect(
-                    px,
-                    py,
-                    anchoPixel,
-                    altoPixel
-                );
-            }
-        }
+        // Nariz
+        ctx.fillStyle = "#ff6b9e";
+        ctx.fillRect(x - p, y + p * 2, p * 2, p);
+
+        // Hocico
+        ctx.fillStyle = claro;
+        ctx.fillRect(x - p * 3, y + p * 3, p * 3, p * 2);
+        ctx.fillRect(x, y + p * 3, p * 3, p * 2);
+
+        // Bigotes
+        ctx.fillStyle = "#fff6f2";
+        ctx.fillRect(x - p * 7, y + p * 3, p * 3, p / 2);
+        ctx.fillRect(x + p * 4, y + p * 3, p * 3, p / 2);
+        ctx.fillRect(x - p * 7, y + p * 5, p * 3, p / 2);
+        ctx.fillRect(x + p * 4, y + p * 5, p * 3, p / 2);
 
         ctx.restore();
     }
 
-    // ======================================
-    // ACTUALIZAR MOVIMIENTO Y REBOTES
-    // ======================================
-
     actualizar() {
-        if (this.eliminado) return;
+        const ancho = canvas.clientWidth;
+        const alto = canvas.clientHeight;
+        const mitad = this.tamano / 2;
 
-        this.velocidadY += this.gravedad;
+        this.x += this.dx;
+        this.y += this.dy;
 
-        this.x += this.velocidadX * velocidadNivel;
-        this.y += this.velocidadY * velocidadNivel;
-
-        // Rebote en el lado derecho
-        if (this.x + this.radio >= canvas.width) {
-            this.x = canvas.width - this.radio;
-            this.velocidadX = -Math.abs(this.velocidadX);
+        // Rebote horizontal
+        if (this.x - mitad < 0) {
+            this.x = mitad;
+            this.dx = Math.abs(this.dx);
+        } else if (this.x + mitad > ancho) {
+            this.x = ancho - mitad;
+            this.dx = -Math.abs(this.dx);
         }
 
-        // Rebote en el lado izquierdo
-        if (this.x - this.radio <= 0) {
-            this.x = this.radio;
-            this.velocidadX = Math.abs(this.velocidadX);
+        // Rebote vertical
+        if (this.y - mitad < 0) {
+            this.y = mitad;
+            this.dy = Math.abs(this.dy);
+        } else if (this.y + mitad > alto) {
+            this.y = alto - mitad;
+            this.dy = -Math.abs(this.dy);
         }
 
-        // Rebote en el suelo
-        if (this.y + this.radio >= canvas.height) {
-            this.y = canvas.height - this.radio;
+        if (this.tiempoAzul > 0) {
+            this.tiempoAzul--;
+        }
+    }
 
-            this.velocidadY =
-                -Math.abs(this.velocidadY) * this.fuerzaRebote;
+    contiene(px, py) {
+        return Math.abs(px - this.x) < this.tamano * 0.65 &&
+               Math.abs(py - this.y) < this.tamano * 0.65;
+    }
+}
 
-            this.fuerzaRebote *= 0.68;
-            this.rebotes++;
+// Crear los 25 gatos
+function crearGatos() {
+    gatos = [];
 
-            // Si pierde la fuerza, vuelve a aparecer arriba
-            if (
-                Math.abs(this.velocidadY) < 1 ||
-                this.rebotes >= 6
-            ) {
-                this.reiniciarArriba();
+    for (let i = 0; i < TOTAL_GATOS; i++) {
+        gatos.push(new Gato());
+    }
+}
+
+// Detectar colisiones entre gatos
+function detectarColisiones() {
+    for (let i = 0; i < gatos.length; i++) {
+        for (let j = i + 1; j < gatos.length; j++) {
+            const a = gatos[i];
+            const b = gatos[j];
+
+            const distanciaX = b.x - a.x;
+            const distanciaY = b.y - a.y;
+
+            const distancia = Math.sqrt(
+                distanciaX * distanciaX +
+                distanciaY * distanciaY
+            );
+
+            const distanciaMinima = (a.tamano + b.tamano) / 2;
+
+            if (distancia < distanciaMinima) {
+                // Evitar invertir la dirección en cada fotograma
+                if (a.tiempoAzul === 0 && b.tiempoAzul === 0) {
+                    const temporalX = a.dx;
+                    const temporalY = a.dy;
+
+                    a.dx = b.dx;
+                    a.dy = b.dy;
+
+                    b.dx = temporalX;
+                    b.dy = temporalY;
+
+                    a.tiempoAzul = 10;
+                    b.tiempoAzul = 10;
+
+                    // Separar ligeramente los gatos para evitar
+                    // que permanezcan superpuestos
+                    const longitud = distancia || 1;
+                    const solapamiento = distanciaMinima - distancia;
+
+                    const ajusteX = (distanciaX / longitud) *
+                        solapamiento / 2;
+
+                    const ajusteY = (distanciaY / longitud) *
+                        solapamiento / 2;
+
+                    a.x -= ajusteX;
+                    a.y -= ajusteY;
+
+                    b.x += ajusteX;
+                    b.y += ajusteY;
+                }
             }
         }
     }
-
-    // ======================================
-    // DETECTAR SI EL MOUSE TOCA LA FIGURA
-    // ======================================
-
-    contienePunto(mouseX, mouseY) {
-        return (
-            Math.abs(mouseX - this.x) <= this.radio &&
-            Math.abs(mouseY - this.y) <= this.radio
-        );
-    }
 }
 
-// ==========================================
-// FONDO PIXEL ART
-// ==========================================
+// Animación principal
+function animar() {
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-function dibujarFondo() {
-    // Cielo nocturno
-    const gradiente = ctx.createLinearGradient(
-        0, 0, 0, canvas.height
-    );
+    dibujarAtardecer();
 
-    gradiente.addColorStop(0, "#080d3d");
-    gradiente.addColorStop(0.55, "#21105a");
-    gradiente.addColorStop(1, "#711c85");
-
-    ctx.fillStyle = gradiente;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Estrellas cuadradas
-    ctx.fillStyle = "#b69aff";
-
-    for (let i = 0; i < 90; i++) {
-        const x = (i * 137.5) % canvas.width;
-        const y = (i * 83.7) % (canvas.height * 0.65);
-
-        const tamaño = i % 4 === 0 ? 4 : 2;
-
-        ctx.fillRect(x, y, tamaño, tamaño);
+    for (const gato of gatos) {
+        gato.actualizar();
     }
 
-    // Luna pixelada
-    ctx.fillStyle = "#ffe4a3";
-    ctx.fillRect(
-        canvas.width - 150, 100, 48, 64
-    );
+    detectarColisiones();
 
-    ctx.fillRect(
-        canvas.width - 162, 112, 72, 40
-    );
-
-    ctx.fillStyle = "#e9b9a1";
-    ctx.fillRect(canvas.width - 140, 118, 8, 8);
-    ctx.fillRect(canvas.width - 116, 140, 8, 8);
-    ctx.fillRect(canvas.width - 128, 154, 8, 4);
-
-    // Ciudad pixelada
-    const base = canvas.height * 0.82;
-    const anchoEdificio = 38;
-
-    for (
-        let x = 0, i = 0;
-        x < canvas.width;
-        x += anchoEdificio, i++
-    ) {
-        const altura = 50 + ((i * 37) % 110);
-
-        ctx.fillStyle = i % 2 === 0 ? "#10184f" : "#15134a";
-
-        ctx.fillRect(
-            x,
-            base - altura,
-            anchoEdificio - 3,
-            altura + 30
-        );
-
-        // Ventanas iluminadas
-        for (let wy = base - altura + 12;
-            wy < base;
-            wy += 18) {
-
-            for (let wx = x + 8;
-                wx < x + anchoEdificio - 8;
-                wx += 16) {
-
-                ctx.fillStyle =
-                    (i + Math.floor(wy)) % 3 === 0
-                    ? "#ffb45e"
-                    : "#ff5f9e";
-
-                ctx.fillRect(wx, wy, 5, 7);
-            }
-        }
+    for (const gato of gatos) {
+        gato.dibujar();
     }
 
-    // Suelo
-    ctx.fillStyle = "#090d35";
-    ctx.fillRect(
-        0,
-        base + 20,
-        canvas.width,
-        canvas.height - base
-    );
-
-    // Línea superior del suelo
-    ctx.fillStyle = "#4434a3";
-    ctx.fillRect(0, base + 20, canvas.width, 5);
+    requestAnimationFrame(animar);
 }
 
-// ==========================================
-// INTERFAZ PIXEL ART
-// ==========================================
-
-function dibujarInterfaz() {
-    ctx.save();
-
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-
-    // Título
-    ctx.font = "bold 28px monospace";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText("ATRAPA LAS FIGURAS!", 22, 22);
-
-    ctx.font = "bold 14px monospace";
-    ctx.fillStyle = "#d9c9ff";
-    ctx.fillText(
-        "CLIC IZQUIERDO PARA ATRAPAR",
-        24,
-        58
-    );
-
-    // Panel de puntuación
-    const panelX = canvas.width - 285;
-
-    ctx.fillStyle = "#080d3d";
-    ctx.fillRect(panelX, 18, 265, 55);
-
-    ctx.strokeStyle = "#b64dff";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(panelX, 18, 265, 55);
-
-    ctx.textAlign = "center";
-    ctx.font = "bold 17px monospace";
-    ctx.fillStyle = "#ffffff";
-
-    ctx.fillText(
-        "ATRAPADOS: " + contador,
-        panelX + 132,
-        36
-    );
-
-    // Nivel de velocidad
-    let nivel = "INICIAL";
-
-    if (contador > 20) {
-        nivel = "ALTA";
-    } else if (contador > 10) {
-        nivel = "MEDIA";
-    }
-
-    ctx.textAlign = "right";
-    ctx.font = "bold 14px monospace";
-    ctx.fillStyle = "#ffd447";
-
-    ctx.fillText(
-        "VELOCIDAD: " + nivel,
-        canvas.width - 22,
-        88
-    );
-
-    ctx.restore();
-}
-
-// ==========================================
-// VELOCIDAD SEGÚN EL CONTADOR
-// ==========================================
-
-function actualizarVelocidad() {
-    if (contador > 20) {
-        velocidadNivel = 2.2;
-    } else if (contador > 10) {
-        velocidadNivel = 1.5;
-    } else {
-        velocidadNivel = 1;
-    }
-}
-
-// ==========================================
-// ATRAPAR FIGURAS CON EL MOUSE
-// ==========================================
-
-canvas.addEventListener("mousedown", function(evento) {
-    if (evento.button !== 0) return;
-
+// Atrapar gatos al hacer clic
+canvas.addEventListener("pointerdown", function(evento) {
     const rect = canvas.getBoundingClientRect();
 
-    const mouseX = evento.clientX - rect.left;
-    const mouseY = evento.clientY - rect.top;
+    const px = evento.clientX - rect.left;
+    const py = evento.clientY - rect.top;
 
-    for (let i = objetos.length - 1; i >= 0; i--) {
-        if (objetos[i].contienePunto(mouseX, mouseY)) {
-            // Eliminar la figura atrapada
-            objetos.splice(i, 1);
+    for (let i = gatos.length - 1; i >= 0; i--) {
+        if (gatos[i].contiene(px, py)) {
+            gatos.splice(i, 1);
 
-            // Actualizar la puntuación
-            contador++;
-            actualizarVelocidad();
+            puntos++;
+            marcador.textContent = puntos;
 
-            // Crear una figura nueva
-            objetos.push(new Objeto());
+            // Aumentar la velocidad cada cinco gatos atrapados
+            if (puntos % 5 === 0) {
+                velocidadExtra += 0.15;
+
+                for (const gato of gatos) {
+                    gato.dx *= 1.15;
+                    gato.dy *= 1.15;
+                }
+            }
+
+            // Mantener siempre 25 gatos en pantalla
+            gatos.push(new Gato());
 
             break;
         }
     }
 });
 
-// ==========================================
-// ANIMACIÓN PRINCIPAL
-// ==========================================
+// Inicio del juego
+ajustarCanvas();
+crearGatos();
+animar();
 
-function animar() {
-    dibujarFondo();
-
-    for (const objeto of objetos) {
-        objeto.actualizar();
-        objeto.dibujar();
-    }
-
-    dibujarInterfaz();
-
-    requestAnimationFrame(animar);
-}
-
-// ==========================================
-// AJUSTAR TAMAÑO DE PANTALLA
-// ==========================================
-
-window.addEventListener("resize", function() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    ctx.imageSmoothingEnabled = false;
-});
-
-// ==========================================
-// INICIAR JUEGO
-// ==========================================
-
-function iniciarJuego() {
-    objetos = [];
-    contador = 0;
-    velocidadNivel = 1;
-
-    for (let i = 0; i < TOTAL_OBJETOS; i++) {
-        objetos.push(new Objeto());
-    }
-
-    animar();
-}
-
-iniciarJuego();
+window.addEventListener("resize", ajustarCanvas);
